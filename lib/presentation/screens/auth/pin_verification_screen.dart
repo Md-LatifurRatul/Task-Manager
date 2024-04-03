@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
-import 'package:project_task_manager/data/services/network_caller.dart';
-import 'package:project_task_manager/data/utility/urls.dart';
-import 'package:project_task_manager/presentation/controllers/auth_controller.dart';
+import 'package:project_task_manager/presentation/controllers/pin_verification_controller.dart';
 import 'package:project_task_manager/presentation/screens/auth/set_password_screen.dart';
 import 'package:project_task_manager/presentation/screens/auth/sign_in_screen.dart';
 import 'package:project_task_manager/presentation/utils/app_colors.dart';
@@ -19,8 +18,8 @@ class PinVerificationScreen extends StatefulWidget {
 class _PinVerificationScreenState extends State<PinVerificationScreen> {
   final TextEditingController _pinController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-
-  bool _isPinVerificationInProgress = false;
+  final PinVerificationController _pinVerificationController =
+      Get.find<PinVerificationController>();
 
   @override
   Widget build(BuildContext context) {
@@ -83,18 +82,21 @@ class _PinVerificationScreenState extends State<PinVerificationScreen> {
                   ),
                   SizedBox(
                     width: double.infinity,
-                    child: Visibility(
-                      visible: _isPinVerificationInProgress == false,
-                      replacement: const Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          _pinVerificationCode();
-                        },
-                        child: const Text('Verify'),
-                      ),
-                    ),
+                    child: GetBuilder<PinVerificationController>(
+                        builder: (pinVerificationController) {
+                      return Visibility(
+                        visible: pinVerificationController.inProgress == false,
+                        replacement: const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () {
+                            _pinVerificationCode(_pinController.text);
+                          },
+                          child: const Text('Verify'),
+                        ),
+                      );
+                    }),
                   ),
                   const SizedBox(
                     height: 32,
@@ -111,10 +113,10 @@ class _PinVerificationScreenState extends State<PinVerificationScreen> {
                       ),
                       TextButton(
                         onPressed: () {
-                          Navigator.pushAndRemoveUntil(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => const SignInScreen()),
+                          Get.offUntil(
+                              GetPageRoute(
+                                page: () => const SignInScreen(),
+                              ),
                               (route) => false);
                         },
                         child: const Text('Sign In'),
@@ -130,29 +132,13 @@ class _PinVerificationScreenState extends State<PinVerificationScreen> {
     );
   }
 
-  Future<void> _pinVerificationCode() async {
-    String otp = _pinController.text.trim();
-
-    _isPinVerificationInProgress = true;
-    setState(() {});
-
-    final response = await NetworkCaller.getRequest(
-        Urls.verifyOtp(AuthController.verifyEmail!, _pinController.text));
-    if (response.isSucess) {
-      await AuthController.saveVerifyOtp(otp);
-      _isPinVerificationInProgress = false;
-      if (mounted) {
-        Navigator.push(context,
-            MaterialPageRoute(builder: (context) => const SetPasswordScreen()));
-      }
-
-      setState(() {});
+  Future<void> _pinVerificationCode(String otp) async {
+    final result =
+        await _pinVerificationController.getPinVerificationController(otp);
+    if (result) {
+      Get.to(() => const SetPasswordScreen());
     } else {
-      _isPinVerificationInProgress = false;
-      setState(() {});
-      if (mounted) {
-        showSnackBarMessage(context, "Pin verification falided! Try again");
-      }
+      showSnackBarMessage(_pinVerificationController.errorMessage);
     }
   }
 

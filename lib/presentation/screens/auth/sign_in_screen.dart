@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:project_task_manager/data/models/login_response.dart';
-import 'package:project_task_manager/data/models/response_object.dart';
-import 'package:project_task_manager/data/services/network_caller.dart';
-import 'package:project_task_manager/data/utility/urls.dart';
-import 'package:project_task_manager/presentation/controllers/auth_controller.dart';
+import 'package:get/get.dart';
+import 'package:project_task_manager/presentation/controllers/sign_in_controller.dart';
 import 'package:project_task_manager/presentation/screens/auth/email_verification_screen.dart';
 import 'package:project_task_manager/presentation/screens/auth/sign_up_screen.dart';
 import 'package:project_task_manager/presentation/screens/main_bottom_nav_screen.dart';
@@ -22,7 +19,8 @@ class _SignInScreenState extends State<SignInScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  bool _isLoginInProgress = false;
+
+  final SignInController _signInController = Get.find<SignInController>();
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +39,7 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                   Text(
                     "Get Started With",
-                    style: Theme.of(context).textTheme.titleLarge,
+                    style: Get.theme.textTheme.titleLarge,
                   ),
                   const SizedBox(
                     height: 40,
@@ -71,20 +69,23 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                   SizedBox(
                     width: double.infinity,
-                    child: Visibility(
-                      visible: _isLoginInProgress == false,
-                      replacement: const Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          if (_formKey.currentState!.validate()) {
-                            _signIn();
-                          }
-                        },
-                        child: const Icon(Icons.arrow_circle_right_outlined),
-                      ),
-                    ),
+                    child: GetBuilder<SignInController>(
+                        builder: (signInConroller) {
+                      return Visibility(
+                        visible: signInConroller.inProgres == false,
+                        replacement: const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (_formKey.currentState!.validate()) {
+                              _signIn();
+                            }
+                          },
+                          child: const Icon(Icons.arrow_circle_right_outlined),
+                        ),
+                      );
+                    }),
                   ),
                   const SizedBox(
                     height: 60,
@@ -99,15 +100,9 @@ class _SignInScreenState extends State<SignInScreen> {
                         ),
                       ),
                       onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: ((context) =>
-                                const EmailVerificationScreen()),
-                          ),
-                        );
+                        Get.to(() => const EmailVerificationScreen());
                       },
-                      child: const Text('Forget Password?'),
+                      child: const Text('Forgot Password?'),
                     ),
                   ),
                   Row(
@@ -122,12 +117,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       ),
                       TextButton(
                         onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: ((context) => const SignUpScreen()),
-                            ),
-                          );
+                          Get.to(() => const SignUpScreen());
                         },
                         child: const Text('Sign up'),
                       ),
@@ -143,41 +133,14 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   Future<void> _signIn() async {
-    _isLoginInProgress == true;
-    setState(() {});
-    Map<String, dynamic> inputParams = {
-      "email": _emailController.text.trim(),
-      "password": _passwordController.text,
-    };
-    final ResponseObject response = await NetworkCaller.postRequest(
-        Urls.loginUrl, inputParams,
-        fromSignIn: true);
-    _isLoginInProgress = false;
-    setState(() {});
-    if (response.isSucess) {
-      if (!mounted) {
-        return;
-      }
+    final result = await _signInController.signIn(
+        _emailController.text.trim(), _passwordController.text);
 
-      LoginResponse loginResponse =
-          LoginResponse.fromJson(response.responseBody);
-      print(loginResponse.userData?.firstName);
-
-      await AuthController.saveUserData(loginResponse.userData!);
-      await AuthController.saveUserToken(loginResponse.token!);
-
-      if (mounted) {
-        Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(
-                builder: (context) => const MainBottomNavScreen()),
-            (route) => false);
-      }
+    if (result) {
+      Get.offUntil(GetPageRoute(page: () => const MainBottomNavScreen()),
+          (route) => false);
     } else {
-      if (mounted) {
-        showSnackBarMessage(
-            context, response.errorMessage ?? "Login failed! Try again");
-      }
+      showSnackBarMessage(_signInController.errorMessage);
     }
   }
 

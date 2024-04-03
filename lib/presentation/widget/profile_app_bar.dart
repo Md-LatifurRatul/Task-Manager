@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:project_task_manager/app.dart';
+import 'package:get/get.dart';
 import 'package:project_task_manager/presentation/controllers/auth_controller.dart';
 import 'package:project_task_manager/presentation/screens/auth/sign_in_screen.dart';
 import 'package:project_task_manager/presentation/screens/update_profile_screen.dart';
@@ -12,12 +12,15 @@ PreferredSizeWidget get profileAppbar {
     backgroundColor: AppColors.themeColor,
     title: GestureDetector(
       onTap: () async {
-        if (!Navigator.canPop(TaskManager.navigatorKey.currentContext!)) {
-          Navigator.push(
-              TaskManager.navigatorKey.currentContext!,
-              MaterialPageRoute(
-                  builder: (context) => const UpdateProfileScreen()));
+        if (!Get.isPopGestureEnable) {
+          Get.to(() => const UpdateProfileScreen());
         }
+        // if (!Navigator.canPop(TaskManager.navigatorKey.currentContext!)) {
+        //   Navigator.push(
+        //       TaskManager.navigatorKey.currentContext!,
+        //       MaterialPageRoute(
+        //           builder: (context) => const UpdateProfileScreen()));
+        // }
       },
       child: Row(
         children: [
@@ -53,11 +56,17 @@ PreferredSizeWidget get profileAppbar {
               onPressed: () async {
                 await AuthController.clearUserData();
 
-                Navigator.pushAndRemoveUntil(
-                    TaskManager.navigatorKey.currentState!.context,
-                    MaterialPageRoute(
-                        builder: (context) => const SignInScreen()),
+                Get.offUntil(
+                    GetPageRoute(
+                      page: () => const SignInScreen(),
+                    ),
                     (route) => false);
+
+                // Navigator.pushAndRemoveUntil(
+                //     TaskManager.navigatorKey.currentState!.context,
+                //     MaterialPageRoute(
+                //         builder: (context) => const SignInScreen()),
+                //     (route) => false);
               },
               icon: const Icon(Icons.logout))
         ],

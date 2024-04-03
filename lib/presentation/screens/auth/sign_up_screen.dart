@@ -1,9 +1,6 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
-import 'package:project_task_manager/data/models/response_object.dart';
-import 'package:project_task_manager/data/services/network_caller.dart';
-import 'package:project_task_manager/data/utility/urls.dart';
+import 'package:get/get.dart';
+import 'package:project_task_manager/presentation/controllers/sign_up_controller.dart';
 import 'package:project_task_manager/presentation/widget/background_widget.dart';
 import 'package:project_task_manager/presentation/widget/snack_bar_message.dart';
 import 'package:project_task_manager/presentation/widget/text_field_validator.dart';
@@ -23,7 +20,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _mobileController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  bool _isRegistrationInProgress = false;
+  final SignUpController _signUpController = Get.find<SignUpController>();
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +39,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                   Text(
                     'Join With Us',
-                    style: Theme.of(context).textTheme.titleLarge,
+                    style: Get.theme.textTheme.titleLarge,
                   ),
                   const SizedBox(
                     height: 40,
@@ -107,20 +104,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                   SizedBox(
                     width: double.infinity,
-                    child: Visibility(
-                      visible: _isRegistrationInProgress == false,
-                      replacement: const Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          if (_formKey.currentState!.validate()) {
-                            _signUp();
-                          }
-                        },
-                        child: const Icon(Icons.arrow_circle_right_outlined),
-                      ),
-                    ),
+                    child: GetBuilder<SignUpController>(
+                        builder: (signUpController) {
+                      return Visibility(
+                        visible: signUpController.inProgress == false,
+                        replacement: const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            if (_formKey.currentState!.validate()) {
+                              await _signUp();
+                            }
+                          },
+                          child: const Icon(Icons.arrow_circle_right_outlined),
+                        ),
+                      );
+                    }),
                   ),
                   const SizedBox(
                     height: 24,
@@ -137,7 +137,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                       TextButton(
                         onPressed: () {
-                          Navigator.pop(context);
+                          Get.back();
                         },
                         child: const Text('Sign in'),
                       ),
@@ -153,30 +153,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Future<void> _signUp() async {
-    _isRegistrationInProgress = true;
-    setState(() {});
+    final result = await _signUpController.signUp(
+        _emailController.text.trim(),
+        _firstNameController.text.trim(),
+        _lastNameController.text.trim(),
+        _mobileController.text.trim(),
+        _passwordController.text);
 
-    Map<String, dynamic> inputParams = {
-      "email": _emailController.text.trim(),
-      "firstName": _firstNameController.text.trim(),
-      "lastName": _lastNameController.text.trim(),
-      "mobile": _mobileController.text.trim(),
-      "password": _passwordController.text,
-    };
-    final ResponseObject response =
-        await NetworkCaller.postRequest(Urls.registrationUrl, inputParams);
-    _isRegistrationInProgress = false;
-    setState(() {});
-
-    if (response.isSucess) {
-      if (mounted) {
-        showSnackBarMessage(context, "Registration Success! Please login.");
-        Navigator.pop(context);
-      }
+    if (result) {
+      Get.back();
+      showSnackBarMessage("Registration Success! please login");
     } else {
-      if (mounted) {
-        showSnackBarMessage(context, "Registration Failed, Try again", true);
-      }
+      showSnackBarMessage("Registration Failed! Try again", true);
     }
   }
 

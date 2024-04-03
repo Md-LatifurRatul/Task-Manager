@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:project_task_manager/data/models/task_counter_item.dart';
-import 'package:project_task_manager/data/services/network_caller.dart';
-import 'package:project_task_manager/data/utility/urls.dart';
+import 'package:project_task_manager/presentation/controllers/delete_task_controller.dart';
+import 'package:project_task_manager/presentation/controllers/update_task_controller.dart';
 import 'package:project_task_manager/presentation/widget/snack_bar_message.dart';
 import 'package:project_task_manager/presentation/widget/status_list_item.dart';
 
@@ -17,8 +18,11 @@ class TaskCard extends StatefulWidget {
 }
 
 class _TaskCardState extends State<TaskCard> {
-  bool _updateTaskInProgress = false;
-  bool _taskDeleteInProgress = false;
+  final UpdateTaskController updateTaskController =
+      Get.find<UpdateTaskController>();
+
+  final DeleteTaskController _deleteTaskController =
+      Get.find<DeleteTaskController>();
 
   @override
   Widget build(BuildContext context) {
@@ -42,24 +46,30 @@ class _TaskCardState extends State<TaskCard> {
                   label: Text(widget.taskCounterItem.status ?? ''),
                 ),
                 const Spacer(),
-                Visibility(
-                  visible: _updateTaskInProgress == false,
-                  replacement: const CircularProgressIndicator(),
-                  child: IconButton(
-                      onPressed: () {
-                        _showUpdateDialogue(widget.taskCounterItem.sId!);
-                      },
-                      icon: const Icon(Icons.edit)),
-                ),
-                Visibility(
-                  visible: _taskDeleteInProgress == false,
-                  replacement: const CircularProgressIndicator(),
-                  child: IconButton(
-                      onPressed: () {
-                        _deleteTaskById(widget.taskCounterItem.sId!);
-                      },
-                      icon: const Icon(Icons.delete_outline)),
-                ),
+                GetBuilder<UpdateTaskController>(
+                    builder: (updateTaskController) {
+                  return Visibility(
+                    visible: updateTaskController.inProgress == false,
+                    replacement: const CircularProgressIndicator(),
+                    child: IconButton(
+                        onPressed: () {
+                          _showUpdateDialogue(widget.taskCounterItem.sId ?? '');
+                        },
+                        icon: const Icon(Icons.edit)),
+                  );
+                }),
+                GetBuilder<DeleteTaskController>(
+                    builder: (deleteTaskController) {
+                  return Visibility(
+                    visible: deleteTaskController.inProgress == false,
+                    replacement: const CircularProgressIndicator(),
+                    child: IconButton(
+                        onPressed: () {
+                          _deleteTaskById(widget.taskCounterItem.sId ?? '');
+                        },
+                        icon: const Icon(Icons.delete_outline)),
+                  );
+                }),
               ],
             ),
           ],
@@ -69,79 +79,61 @@ class _TaskCardState extends State<TaskCard> {
   }
 
   void _showUpdateDialogue(String id) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("Select status"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              StatusListItem(
-                status: 'New',
-                isSelected: _isCurrentSelectStatus('New'),
-                onTap: (status) => _updateTaskById(id, status),
-              ),
-              StatusListItem(
-                status: 'Completed',
-                isSelected: _isCurrentSelectStatus('Completed'),
-                onTap: (status) => _updateTaskById(id, status),
-              ),
-              StatusListItem(
-                status: 'Progress',
-                isSelected: _isCurrentSelectStatus('Progress'),
-                onTap: (status) => _updateTaskById(id, status),
-              ),
-              StatusListItem(
-                status: 'Cancelled',
-                isSelected: _isCurrentSelectStatus('Cancelled'),
-                onTap: (status) => _updateTaskById(id, status),
-              ),
-            ],
-          ),
-        );
-      },
+    Get.dialog(
+      AlertDialog(
+        title: const Text("Select status"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            StatusListItem(
+              status: 'New',
+              isSelected: _isCurrentSelectStatus('New'),
+              onTap: (status) => _updateTaskById(id, status),
+            ),
+            StatusListItem(
+              status: 'Completed',
+              isSelected: _isCurrentSelectStatus('Completed'),
+              onTap: (status) => _updateTaskById(id, status),
+            ),
+            StatusListItem(
+              status: 'Progress',
+              isSelected: _isCurrentSelectStatus('Progress'),
+              onTap: (status) => _updateTaskById(id, status),
+            ),
+            StatusListItem(
+              status: 'Cancelled',
+              isSelected: _isCurrentSelectStatus('Cancelled'),
+              onTap: (status) => _updateTaskById(id, status),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   bool _isCurrentSelectStatus(String status) {
-    return widget.taskCounterItem.status! == status;
+    return widget.taskCounterItem.status == status;
   }
 
   Future<void> _updateTaskById(String id, String status) async {
-    _updateTaskInProgress = true;
-    setState(() {});
+    final result = await updateTaskController.getUpdateTaskController(
+        id, status, widget.refreshList);
 
-    final response =
-        await NetworkCaller.getRequest(Urls.updateTaskStatus(id, status));
-    _updateTaskInProgress = false;
-    if (response.isSucess) {
-      _updateTaskInProgress = false;
-      widget.refreshList();
+    if (result) {
+      return;
     } else {
-      setState(() {});
-      if (mounted) {
-        showSnackBarMessage(
-            context,
-            response.errorMessage ??
-                'Update task status has been has been failed');
-      }
+      showSnackBarMessage(updateTaskController.errorMessage);
     }
   }
 
   Future<void> _deleteTaskById(String id) async {
-    _taskDeleteInProgress = true;
-    setState(() {});
-    final response = await NetworkCaller.getRequest(Urls.deleteTaskById(id));
-    _taskDeleteInProgress = false;
-    if (response.isSucess) {
-      widget.refreshList();
+    final result = await _deleteTaskController.getDeleteTaskController(
+        id, widget.refreshList);
+
+    if (result) {
+      return;
     } else {
-      setState(() {});
-      if (mounted) {
-        showSnackBarMessage(
-            context, response.errorMessage ?? 'Delete task has been failed');
-      }
+      showSnackBarMessage(_deleteTaskController.errorMessage);
     }
   }
 }

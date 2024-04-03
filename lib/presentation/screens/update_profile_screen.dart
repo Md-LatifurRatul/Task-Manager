@@ -1,11 +1,9 @@
-import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:project_task_manager/data/models/user_data.dart';
-import 'package:project_task_manager/data/services/network_caller.dart';
-import 'package:project_task_manager/data/utility/urls.dart';
+import 'package:get/get.dart';
 import 'package:project_task_manager/presentation/controllers/auth_controller.dart';
+import 'package:project_task_manager/presentation/controllers/image_picker_controller.dart';
+import 'package:project_task_manager/presentation/controllers/profile_update_controller.dart';
+import 'package:project_task_manager/presentation/controllers/update_task_controller.dart';
 import 'package:project_task_manager/presentation/screens/main_bottom_nav_screen.dart';
 import 'package:project_task_manager/presentation/widget/background_widget.dart';
 import 'package:project_task_manager/presentation/widget/profile_app_bar.dart';
@@ -28,8 +26,13 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
       TextEditingController();
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  XFile? _imagePicked;
-  bool _profileUpdateInProgress = false;
+
+  final ImagePickerController _imagePickerController =
+      Get.find<ImagePickerController>();
+  final ProfileUpdateController _profileUpdateController =
+      Get.find<ProfileUpdateController>();
+  final UpdateTaskController updateTaskController =
+      Get.find<UpdateTaskController>();
 
   @override
   void initState() {
@@ -57,10 +60,8 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                   ),
                   Text(
                     'Update Profile',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(fontSize: 24),
+                    style:
+                        Get.theme.textTheme.titleLarge?.copyWith(fontSize: 24),
                   ),
                   const SizedBox(
                     height: 16,
@@ -126,20 +127,23 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                   ),
                   SizedBox(
                     width: double.infinity,
-                    child: Visibility(
-                      visible: _profileUpdateInProgress == false,
-                      replacement: const Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          if (_formKey.currentState!.validate()) {
-                            _updateProfile();
-                          }
-                        },
-                        child: const Icon(Icons.arrow_circle_right_outlined),
-                      ),
-                    ),
+                    child: GetBuilder<ProfileUpdateController>(
+                        builder: (profileUpdateController) {
+                      return Visibility(
+                        visible: profileUpdateController.inProgress == false,
+                        replacement: const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (_formKey.currentState!.validate()) {
+                              _updateProfile();
+                            }
+                          },
+                          child: const Icon(Icons.arrow_circle_right_outlined),
+                        ),
+                      );
+                    }),
                   ),
                 ],
               ),
@@ -151,105 +155,69 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
   }
 
   Widget imageSelectTapped() {
-    return GestureDetector(
-      onTap: () {
-        imagePickFromGallery();
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(8),
-                    bottomLeft: Radius.circular(8)),
-              ),
-              child: const Text(
-                'Photo',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+    return GetBuilder<ImagePickerController>(builder: (imagePickerController) {
+      return GestureDetector(
+        onTap: () async {
+          await imagePickerController.getImagePickedFromGallery();
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(8),
+                      bottomLeft: Radius.circular(8)),
+                ),
+                child: const Text(
+                  'Photo',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(
-              width: 8,
-            ),
-            Expanded(
-              child: Text(
-                _imagePicked?.name ?? '',
-                maxLines: 1,
-                style: const TextStyle(overflow: TextOverflow.ellipsis),
+              const SizedBox(
+                width: 8,
               ),
-            ),
-          ],
+              Expanded(
+                child: Text(
+                  imagePickerController.pickedImage?.name ?? '',
+                  maxLines: 1,
+                  style: const TextStyle(overflow: TextOverflow.ellipsis),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
-  }
-
-  Future<void> imagePickFromGallery() async {
-    ImagePicker imagePicker = ImagePicker();
-    _imagePicked = await imagePicker.pickImage(source: ImageSource.camera);
-    setState(() {});
+      );
+    });
   }
 
   Future<void> _updateProfile() async {
-    String? photo;
-    _profileUpdateInProgress = true;
-    setState(() {});
-    Map<String, dynamic> inputParams = {
-      "email": _emailController.text,
-      "firstName": _firstNameController.text.trim(),
-      "lastName": _lastNameController.text.trim(),
-      "mobile": _moblieNumberController.text.trim(),
-    };
+    final result = await _profileUpdateController.getUpdateProfileController(
+      _emailController.text,
+      _firstNameController.text.trim(),
+      _lastNameController.text.trim(),
+      _moblieNumberController.text.trim(),
+      _passwordInputController.text,
+      _imagePickerController.pickedImage,
+    );
 
-    if (_passwordInputController.text.isNotEmpty) {
-      inputParams["password"] = _passwordInputController.text;
-    }
-
-    if (_imagePicked != null) {
-      List<int> bytes = File(_imagePicked!.path).readAsBytesSync();
-      String photo = base64Encode(bytes);
-      inputParams["photo"] = photo;
-    }
-    final response =
-        await NetworkCaller.postRequest(Urls.updateProfileUrl, inputParams);
-
-    _profileUpdateInProgress = false;
-
-    if (response.isSucess) {
-      if (response.responseBody['status'] == 'success') {
-        UserData userData = UserData(
-          email: _emailController.text,
-          firstName: _firstNameController.text.trim(),
-          lastName: _lastNameController.text.trim(),
-          mobile: _moblieNumberController.text.trim(),
-          photo: photo,
-        );
-
-        await AuthController.saveUserData(userData);
-      }
-      if (mounted) {
-        Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(
-                builder: (context) => const MainBottomNavScreen()),
-            (route) => false);
-      }
+    if (result) {
+      Get.offUntil(
+          GetPageRoute(
+            page: () => const MainBottomNavScreen(),
+          ),
+          (route) => false);
     } else {
-      if (!mounted) {
-        return;
-      }
-      setState(() {});
-      showSnackBarMessage(context, 'Update Profile failed! Try again');
+      showSnackBarMessage(_profileUpdateController.errorMessage);
     }
   }
 

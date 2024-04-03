@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+//import 'package:get/get.dart';
 
 class StatusListItem extends StatelessWidget {
   final String status;
@@ -20,7 +22,8 @@ class StatusListItem extends StatelessWidget {
       onTap: () {
         if (!isSelected) {
           onTap(status);
-          Navigator.pop(context);
+          Get.back();
+          // Navigator.pop(context);
         }
       },
     );
