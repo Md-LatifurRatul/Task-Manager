@@ -53,7 +53,6 @@ class ProfileUpdateController extends GetxController {
           firstName: firstName,
           lastName: lastName,
           mobile: mobileNumber,
-          photo: photo,
         );
 
         await AuthController.saveUserData(userData);

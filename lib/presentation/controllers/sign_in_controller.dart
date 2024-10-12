@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:project_task_manager/data/models/login_response.dart';
 import 'package:project_task_manager/data/models/response_object.dart';
+import 'package:project_task_manager/data/models/user_data.dart';
 import 'package:project_task_manager/data/services/network_caller.dart';
 import 'package:project_task_manager/data/utility/urls.dart';
 import 'package:project_task_manager/presentation/controllers/auth_controller.dart';
@@ -29,13 +30,21 @@ class SignInController extends GetxController {
     if (response.isSucess) {
       LoginResponse loginResponse =
           LoginResponse.fromJson(response.responseBody);
-      // print(loginResponse.userData?.firstName);
 
-      await AuthController.saveUserData(loginResponse.userData!);
-      await AuthController.saveUserToken(loginResponse.token!);
+      if (loginResponse.userData != null &&
+          loginResponse.userData!.isNotEmpty) {
+        UserData user = loginResponse.userData!.first;
 
-      update();
-      return true;
+        await AuthController.saveUserData(user);
+        await AuthController.saveUserToken(loginResponse.token!);
+
+        update();
+        return true;
+      } else {
+        _errorMessage = 'No user data found.';
+        update();
+        return false;
+      }
     } else {
       _errorMessage = response.errorMessage;
       _inProgress = false;

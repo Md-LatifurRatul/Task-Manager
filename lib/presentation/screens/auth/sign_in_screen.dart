@@ -70,22 +70,24 @@ class _SignInScreenState extends State<SignInScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: GetBuilder<SignInController>(
-                        builder: (signInConroller) {
-                      return Visibility(
-                        visible: signInConroller.inProgres == false,
-                        replacement: const Center(
-                          child: CircularProgressIndicator(),
-                        ),
-                        child: ElevatedButton(
-                          onPressed: () {
-                            if (_formKey.currentState!.validate()) {
-                              _signIn();
-                            }
-                          },
-                          child: const Icon(Icons.arrow_circle_right_outlined),
-                        ),
-                      );
-                    }),
+                      builder: (signInConroller) {
+                        return Visibility(
+                          visible: signInConroller.inProgres == false,
+                          replacement: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                          child: ElevatedButton(
+                            onPressed: () {
+                              if (_formKey.currentState!.validate()) {
+                                _signIn();
+                              }
+                            },
+                            child:
+                                const Icon(Icons.arrow_circle_right_outlined),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                   const SizedBox(
                     height: 60,
