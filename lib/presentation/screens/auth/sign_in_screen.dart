@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:project_task_manager/data/models/login_response.dart';
 import 'package:project_task_manager/data/models/response_object.dart';
+import 'package:project_task_manager/data/models/user_data.dart';
 import 'package:project_task_manager/data/services/network_caller.dart';
 import 'package:project_task_manager/data/utility/urls.dart';
 import 'package:project_task_manager/presentation/controllers/auth_controller.dart';
@@ -143,17 +144,21 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   Future<void> _signIn() async {
-    _isLoginInProgress == true;
+    _isLoginInProgress = true;
     setState(() {});
+
     Map<String, dynamic> inputParams = {
       "email": _emailController.text.trim(),
       "password": _passwordController.text,
     };
+
     final ResponseObject response = await NetworkCaller.postRequest(
         Urls.loginUrl, inputParams,
         fromSignIn: true);
+
     _isLoginInProgress = false;
     setState(() {});
+
     if (response.isSucess) {
       if (!mounted) {
         return;
@@ -161,22 +166,32 @@ class _SignInScreenState extends State<SignInScreen> {
 
       LoginResponse loginResponse =
           LoginResponse.fromJson(response.responseBody);
-      print(loginResponse.userData?.firstName);
 
-      await AuthController.saveUserData(loginResponse.userData!);
-      await AuthController.saveUserToken(loginResponse.token!);
+      if (loginResponse.userData != null &&
+          loginResponse.userData!.isNotEmpty) {
+        UserData user = loginResponse.userData!.first;
 
-      if (mounted) {
-        Navigator.pushAndRemoveUntil(
+        await AuthController.saveUserData(user);
+        await AuthController.saveUserToken(loginResponse.token!);
+        if (mounted) {
+          Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(
                 builder: (context) => const MainBottomNavScreen()),
-            (route) => false);
+            (route) => false,
+          );
+        }
+      } else {
+        if (mounted) {
+          showSnackBarMessage(context, 'No user data found.');
+        }
       }
     } else {
       if (mounted) {
         showSnackBarMessage(
-            context, response.errorMessage ?? "Login failed! Try again");
+          context,
+          response.errorMessage ?? "Login failed! Try again",
+        );
       }
     }
   }
